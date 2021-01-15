@@ -14,6 +14,7 @@ option(NO_IPv6 "If you don't want/have IPv6 support (transport only)" OFF)
 option(NO_MASTER_DUMP "To disable master-format (named) dump (-d option)" OFF)
 option(NO_ZLIB "To disable usage of zlib (also LIBS - for zlib, -lz is needed)" OFF)
 option(ENABLE_JEMALLOC     "Build rbldnsd with jemalloc allocator  [default: OFF]" OFF)
+option(ENABLE_SYSTEMD "Build rbldnsd with systemd support [default: OFF]" OFF)
 
 set(DEFAULT_INCLUDE_PATHS "/opt;/usr;/usr/local;/opt/local;/usr/pkg;/opt/csw;/sw")
 set(DEFAULT_LIBRARY_PATHS "/usr/local;/usr/pkg;/usr;/Library/Frameworks;/sw;/opt/local;/opt/csw;/opt")
@@ -40,6 +41,12 @@ IF(ENABLE_JEMALLOC MATCHES "ON")
             ROOT ${JEMALLOC_ROOT_DIR} MODULES jemalloc)
     SET(WITH_JEMALLOC "1")
     LIST(APPEND CMAKE_REQUIRED_LIBRARIES "-lpthread")
+ENDIF()
+
+IF(ENABLE_SYSTEMD MATCHES "ON")
+    ProcessPackage(LIBSYSTEMD LIBRARY libsystemd INCLUDE sd-daemon.h INCLUDE_SUFFIXES include/systemd
+            ROOT ${LIBSYSTEMD_ROOT_DIR} MODULES libsystemd)
+    set(WITH_SYSTEMD "1")
 ENDIF()
 
 
