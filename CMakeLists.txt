@@ -101,7 +101,6 @@ add_executable(rbldnsd
         rbldnsd_util.c
         rbldnsd_zones.c
         ${CMAKE_CURRENT_BINARY_DIR}/dns_nametab.c)
-set_target_properties(rbldnsd PROPERTIES VERSION ${RBLDNSD_VERSION})
 target_link_libraries(rbldnsd t1ha)
 target_link_libraries(rbldnsd sds)
 target_link_libraries(rbldnsd ${RSPAMD_REQUIRED_LIBRARIES} ${CMAKE_REQUIRED_LIBRARIES})
