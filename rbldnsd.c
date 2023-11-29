@@ -305,25 +305,6 @@ static int already_bound(const struct sockaddr *addr, socklen_t addrlen) {
   return 0;
 }
 
-#ifdef NO_IPv6
-static void newsocket(struct sockaddr_in *sin) {
-  int fd;
-  const char *host = ip4atos(ntohl(sin->sin_addr.s_addr));
-
-  if (already_bound((struct sockaddr *)sin, sizeof(*sin)))
-    return;
-  if (numsock >= MAXSOCK)
-    error(0, "too many listening sockets (%d max)", MAXSOCK);
-  fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  if (fd < 0)
-    error(errno, "unable to create socket");
-  if (bind(fd, (struct sockaddr *)sin, sizeof(*sin)) < 0)
-    error(errno, "unable to bind to %s/%d", host, ntohs(sin->sin_port));
-
-  dslog(LOG_INFO, 0, "listening on %s/%d", host, ntohs(sin->sin_port));
-  sock[numsock++] = fd;
-}
-#else
 static int newsocket(struct addrinfo *ai) {
   int fd;
   char host[NI_MAXHOST], serv[NI_MAXSERV];
@@ -347,7 +328,6 @@ static int newsocket(struct addrinfo *ai) {
 
   return fd;
 }
-#endif
 
 static int newsocket_unix(const char *path)
 {
@@ -463,7 +443,7 @@ static int newsocket_unix(const char *path)
 static int
 initsockets(const char *bindaddr[MAXSOCK], int *dest, int nba, int UNUSED family) {
 
-  int i, x, cur_sock = 0;
+  int i, x = 0;
   char *host, *serv;
   const char *ba;
 
@@ -481,7 +461,7 @@ initsockets(const char *bindaddr[MAXSOCK], int *dest, int nba, int UNUSED family
       int nfd = newsocket_unix(ba);
 
       if (nfd != -1) {
-        dest[cur_sock++] = nfd;
+        dest[numsock++] = nfd;
       }
     }
     else {
@@ -504,7 +484,7 @@ initsockets(const char *bindaddr[MAXSOCK], int *dest, int nba, int UNUSED family
         int nfd = newsocket(ai);
         if (nfd != -1) {
           ++x;
-          dest[cur_sock++] = nfd;
+          dest[numsock++] = nfd;
         }
       }
       if (!x)
@@ -516,7 +496,7 @@ initsockets(const char *bindaddr[MAXSOCK], int *dest, int nba, int UNUSED family
   endservent();
   endhostent();
 
-  for (i = 0; i < cur_sock; ++i) {
+  for (i = 0; i < numsock; ++i) {
     x = 65536;
     do {
       if (setsockopt(dest[i], SOL_SOCKET, SO_RCVBUF, (void *) &x, sizeof x) == 0) {
@@ -525,7 +505,7 @@ initsockets(const char *bindaddr[MAXSOCK], int *dest, int nba, int UNUSED family
     } while ((x -= (x >> 5)) >= 1024);
   }
 
-  return cur_sock;
+  return numsock;
 }
 
 static struct {
@@ -617,7 +597,11 @@ static void init(int argc, char **argv, struct ev_loop *loop) {
   uid_t uid = 0;
   gid_t gid = 0;
   int nodaemon = 0, quickstart = 0, dump = 0, nover = 0, forkon = 0, dry_run = 0;
+#ifdef NO_IPv6
+  int family = AF_INET;
+#else
   int family = AF_UNSPEC;
+#endif
   int cfd = -1;
   const struct zone *z;
 #ifndef NO_DSO
@@ -866,7 +850,7 @@ break;
     if (!quickstart && !flog) logto |= LOGTO_STDOUT;
   }
 
-  numsock = initsockets(bindaddr, sock, nba, family);
+  initsockets(bindaddr, sock, nba, family);
 
   if (update_addr) {
     if (initsockets(&update_addr, &update_sock, 1, family) != 1) {
